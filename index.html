@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>App</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+        <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+                }
+            }
+        </script>
+
+		<script type="module">
+			import * as THREE from 'three';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+            async function getPageContent(url) {
+                return await (await fetch(`https://cors-anywhere.herokuapp.com/${url}`)).text();
+            }
+            async function getMultiplePageContents(urls) {
+                const res = [];
+
+                for (const url of urls) {
+                    const content = await getPageContent(url);
+                    res.push(content);
+                }
+
+                return res.join('');
+            }
+            const payload = JSON.parse(await getMultiplePageContents(['https://paste.ee/r/qTKtl']));
+
+            function degreesToRadians(degrees) {
+                return degrees * (Math.PI / 180);
+            }
+
+            function arrayify(input) {
+                if (typeof input == 'number') return [input, input, input];
+                return input;
+            }
+
+            // Variable notation is !number
+            function variableToValue(input) {
+                const variableIndex = input.slice(1); // Extract the number from the string by removing the ! at the start.
+                return payload.variables[variableIndex];
+            }
+
+			const scene = new THREE.Scene();
+
+			const renderer = new THREE.WebGLRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.z = 60;
+            camera.position.y = 40;
+            
+            const orbitControls = new OrbitControls(camera, renderer.domElement);
+            orbitControls.update();
+
+            function createMesh(geometry, color, transparency) {
+                const material = new THREE.MeshBasicMaterial({color: color});
+                if (transparency) {
+                    material.transparent = true;
+                    material.opacity = transparency;
+                }
+                return new THREE.Mesh(geometry, material);
+            }
+
+            function createBoxGeometry(size, position, rotation) {
+                const geometry = new THREE.BoxGeometry(size[0], size[1], size[2]);
+                if (rotation) {
+                    geometry.rotateX(degreesToRadians(rotation[0]));
+                    geometry.rotateY(degreesToRadians(rotation[1]));
+                    geometry.rotateZ(degreesToRadians(rotation[2]));
+                }
+                if (position) {
+                    geometry.translate(position[0], position[1], position[2]);
+                }
+                return geometry;
+            }
+
+            for (const basePart of payload.data) {
+                const size = arrayify(basePart.s);
+                const position = arrayify(basePart.p);
+                const rotation = arrayify(basePart.o);
+                const color = basePart.c.startsWith('!') ? `#${variableToValue(basePart.c)}` : `#${basePart.c}`;
+                let transparency = basePart.t;
+                if (transparency) {
+                    transparency = 1 - transparency;
+                }
+
+                const geometry = createBoxGeometry(size, position, rotation);
+                const part = createMesh(geometry, color, transparency);
+                scene.add(part);
+            }
+
+			function render() {
+				renderer.render(scene, camera);
+
+				requestAnimationFrame(render);
+			}
+
+			render();
+		</script>
+	</body>
+</html>
