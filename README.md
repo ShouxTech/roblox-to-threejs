@@ -10,3 +10,5 @@ Decals\
 Textures
 
 Video demonstration: https://streamable.com/hmxgli
+
+![Screenshot preview](extra/screenshot.png)
